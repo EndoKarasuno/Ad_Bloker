@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>JS版 広告ブロッカー (文字コード自動判別)</title>
+    <!-- 【追加】文字コード判定ライブラリを読み込む -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jschardet/2.4.0/jschardet.min.js"></script>
+
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        #controls { margin-bottom: 20px; display: flex; gap: 10px; }
+        #url-input { flex-grow: 1; padding: 8px; font-size: 16px; }
+        button { padding: 8px 15px; font-size: 16px; cursor: pointer; }
+        #output-frame { width: 100%; height: 80vh; border: 1px solid #ccc; background: #f0f0f0; }
+        #status { color: #555; min-height: 1.6em; }
+    </style>
+</head>
+<body>
+    <h1>JS版 簡易広告ブロッカー (文字コード自動判別)</h1>
+    <div id="controls">
+        <input type="text" id="url-input" placeholder="処理したいサイトのURLを入力">
+        <button id="process-button">ページを処理</button>
+    </div>
+    <p id="status">ここにステータスが表示されます。</p>
+    <iframe id="output-frame" sandbox="allow-scripts"></iframe>
+    <script src="script.js"></script>
+</body>
+</html>
