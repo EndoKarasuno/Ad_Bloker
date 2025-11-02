@@ -1,118 +1,24 @@
 // =======================================================================
-// ステップ1：HTML要素を変数に格納する（チェックボックスを追加）
+// ステップ1：HTML要素を変数に格納する
 // =======================================================================
 const urlInput = document.getElementById('url-input');
 const processButton = document.getElementById('process-button');
 const outputFrame = document.getElementById('output-frame');
 const statusText = document.getElementById('status');
-const securityModeCheckbox = document.getElementById('security-mode-checkbox'); // 【追加】
-
-// (プロキシリストとfetchAndDecode関数は変更なし)
-const PROXY_LIST = [ 'https://corsproxy.io/?', 'https://api.allorigins.win/raw?url=' ];
-async function fetchAndDecode(url) { /* ...変更なし... */ }
+const adblockCheckbox = document.getElementById('adblock-checkbox');
+const sandboxCheckbox = document.getElementById('sandbox-checkbox');
 
 // =======================================================================
-// ステップ4：ボタンが押されたときのメインの処理（サンドボックス設定を動的に）
+// ステップ2：使用するプロキシサーバーのリストを定義
 // =======================================================================
-processButton.addEventListener('click', async () => {
-    let targetUrl = urlInput.value.trim();
-    // (URLの正規化処理は変更なし)
-    if (!targetUrl) { /* ... */ }
-    targetUrl = targetUrl.split('#')[0];
-    if (!targetUrl.startsWith('http')) { /* ... */ }
-
-    // 【改良点】モードに応じてiframeのサンドボックス設定を変更
-    if (securityModeCheckbox.checked) {
-        // 最大セキュリティモード：厳しいサンドボックス
-        outputFrame.sandbox = "allow-scripts";
-    } else {
-        // 機能優先モード：緩いサンドボックス（ゲームなどが動くようになるが、安全性は低下）
-        outputFrame.sandbox = "allow-scripts allow-same-origin allow-forms allow-popups";
-    }
-
-    outputFrame.srcdoc = "<html><body><p>処理中です。お待ちください...</p></body></html>";
-    try {
-        const htmlString = await fetchAndDecode(targetUrl);
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlString, 'text/html');
-        let finalHtml;
-
-        // 【改良点】モード情報を渡して処理を分岐させる
-        const isSecurityMode = securityModeCheckbox.checked;
-
-        if (doc.querySelector('frameset')) {
-            statusText.textContent = 'フレームセットを検出。ページを再構成します...';
-            finalHtml = await rebuildFramesetPage(doc, targetUrl, isSecurityMode);
-        } else {
-            statusText.textContent = '通常ページとして処理します...';
-            finalHtml = processHtmlContent(doc, targetUrl, isSecurityMode);
-        }
-        outputFrame.srcdoc = finalHtml;
-        statusText.textContent = '処理が完了しました。';
-    } catch (error) { /* ...変更なし... */ }
-});
+const PROXY_LIST = [
+    'https://corsproxy.io/?',
+    'https://api.allorigins.win/raw?url='
+];
 
 // =======================================================================
-// ステップ5：HTMLを加工するための補助関数（モードに応じて処理内容を変更）
+// ステップ3：コンテンツ取得用の関数（プロキシフォールバック＋文字コード自動判別）
 // =======================================================================
-
-// rebuildFramesetPage関数も、isSecurityModeを下の階層に渡すように変更
-async function rebuildFramesetPage(doc, baseUrl, isSecurityMode) {
-    // ... 大部分のロジックは変更なし ...
-    const frameContents = await Promise.all(
-        frameUrls.map(async (url) => {
-            try {
-                const html = await fetchAndDecode(url);
-                const frameDoc = new DOMParser().parseFromString(html, 'text/html');
-                // ここでisSecurityModeを渡す
-                return processHtmlContent(frameDoc, url, isSecurityMode);
-            } catch (e) { /* ... */ }
-        })
-    );
-    // ... 残りのロジックは変更なし ...
-}
-
-/**
- * HTMLコンテンツを実際に加工する関数
- * @param {Document} doc - 解析済みのDOM
- * @param {string} baseUrl - 元のページのURL
- * @param {boolean} isSecurityMode - 最大セキュリティモードかどうか
- */
-function processHtmlContent(doc, baseUrl, isSecurityMode) {
-    // 【改良点】モードに応じて処理を分岐
-    if (isSecurityMode) {
-        // 最大セキュリティモードでは、広告ブロックも行う
-        doc.querySelectorAll('div[class*="ad"], div[id*="ad"], iframe[class*="ad"], div[data-ad-unit]').forEach(el => el.remove());
-    }
-
-    // --- 外部リンクの無効化は、どちらのモードでも共通の機能 ---
-    const baseDomain = new URL(baseUrl).hostname;
-    doc.querySelectorAll('a[href]').forEach(a => {
-        try {
-            const href = a.getAttribute('href');
-            if (!href || href.trim().toLowerCase().startsWith('javascript:')) return;
-            const absoluteHref = new URL(href, baseUrl).href;
-            const linkDomain = new URL(absoluteHref).hostname;
-            if (linkDomain !== baseDomain && !linkDomain.endsWith(`.${baseDomain}`)) {
-                a.removeAttribute('href');
-                a.style.cssText = 'color: #999; text-decoration: line-through;';
-                a.title = '外部リンクのため無効化';
-            }
-        } catch (e) { /* ignore */ }
-    });
-
-    // --- これより下のパス修正や文字コード設定は、どちらのモードでも共通 ---
-    doc.querySelectorAll('[href], [src]').forEach(el => { /* ...変更なし... */ });
-    doc.querySelector('base')?.remove();
-    let head = doc.querySelector('head');
-    if (!head) { /* ... */ }
-    if (!head.querySelector('meta[charset]')) { /* ... */ }
-
-    return doc.documentElement.outerHTML;
-}
-
-
-// --- 変更のない関数のためのダミー ---
 async function fetchAndDecode(url) {
     for (const proxy of PROXY_LIST) {
         const proxyUrl = `${proxy}${encodeURIComponent(url)}`;
@@ -152,48 +58,58 @@ async function fetchAndDecode(url) {
     throw new Error('すべてのプロキシサーバーへの接続に失敗しました。');
 }
 
-function processHtmlContent(doc, baseUrl, isSecurityMode) {
-    if (isSecurityMode) {
-        doc.querySelectorAll('div[class*="ad"], div[id*="ad"], iframe[class*="ad"], div[data-ad-unit]').forEach(el => el.remove());
+// =======================================================================
+// ステップ4：ボタンが押されたときのメインの処理（オプションを個別に制御）
+// =======================================================================
+processButton.addEventListener('click', async () => {
+    let targetUrl = urlInput.value.trim();
+    if (!targetUrl) {
+        alert('URLを入力してください。');
+        return;
     }
-    const baseDomain = new URL(baseUrl).hostname;
-    doc.querySelectorAll('a[href]').forEach(a => {
-        try {
-            const href = a.getAttribute('href');
-            if (!href || href.trim().toLowerCase().startsWith('javascript:')) return;
-            const absoluteHref = new URL(href, baseUrl).href;
-            const linkDomain = new URL(absoluteHref).hostname;
-            if (linkDomain !== baseDomain && !linkDomain.endsWith(`.${baseDomain}`)) {
-                a.removeAttribute('href');
-                a.style.cssText = 'color: #999; text-decoration: line-through;';
-                a.title = '外部リンクのため無効化';
-            }
-        } catch (e) { /* ignore */ }
-    });
-    doc.querySelectorAll('[href], [src]').forEach(el => {
-        const attr = el.hasAttribute('href') ? 'href' : 'src';
-        const originalPath = el.getAttribute(attr);
-        if (originalPath && !originalPath.startsWith('http') && !originalPath.startsWith('data:') && !originalPath.trim().toLowerCase().startsWith('javascript:')) {
-            try {
-                el.setAttribute(attr, new URL(originalPath, baseUrl).href);
-            } catch (e) { /* ignore */ }
-        }
-    });
-    doc.querySelector('base')?.remove();
-    let head = doc.querySelector('head');
-    if (!head) {
-        head = doc.createElement('head');
-        doc.documentElement.prepend(head);
+    targetUrl = targetUrl.split('#')[0];
+    if (!targetUrl.startsWith('http')) {
+        targetUrl = 'https://' + targetUrl;
     }
-    if (!head.querySelector('meta[charset]')) {
-        const meta = doc.createElement('meta');
-        meta.setAttribute('charset', 'UTF-8');
-        head.prepend(meta);
-    }
-    return doc.documentElement.outerHTML;
-}
 
-async function rebuildFramesetPage(doc, baseUrl, isSecurityMode) {
+    if (sandboxCheckbox.checked) {
+        outputFrame.sandbox = "allow-scripts";
+    } else {
+        outputFrame.sandbox = "allow-scripts allow-same-origin allow-forms allow-popups";
+    }
+
+    outputFrame.srcdoc = "<html><body><p>処理中です。お待ちください...</p></body></html>";
+
+    try {
+        const htmlString = await fetchAndDecode(targetUrl);
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlString, 'text/html');
+        let finalHtml;
+
+        const doAdblock = adblockCheckbox.checked;
+
+        if (doc.querySelector('frameset')) {
+            statusText.textContent = 'フレームセットを検出。ページを再構成します...';
+            finalHtml = await rebuildFramesetPage(doc, targetUrl, doAdblock);
+        } else {
+            statusText.textContent = '通常ページとして処理します...';
+            finalHtml = processHtmlContent(doc, targetUrl, doAdblock);
+        }
+        
+        outputFrame.srcdoc = finalHtml;
+        statusText.textContent = '処理が完了しました。';
+    } catch (error) {
+        console.error('エラー:', error);
+        statusText.textContent = `エラー: ${error.message}`;
+        alert('エラーが発生しました。プロキシが不安定か、サイトが対応していない可能性があります。');
+    }
+});
+
+// =======================================================================
+// ステップ5：HTMLを加工するための補助関数
+// =======================================================================
+
+async function rebuildFramesetPage(doc, baseUrl, doAdblock) {
     const frameset = doc.querySelector('frameset');
     const isColsLayout = frameset.hasAttribute('cols');
     const layoutDefinition = frameset.getAttribute(isColsLayout ? 'cols' : 'rows') || '*,*';
@@ -205,7 +121,7 @@ async function rebuildFramesetPage(doc, baseUrl, isSecurityMode) {
             try {
                 const html = await fetchAndDecode(url);
                 const frameDoc = new DOMParser().parseFromString(html, 'text/html');
-                return processHtmlContent(frameDoc, url, isSecurityMode);
+                return processHtmlContent(frameDoc, url, doAdblock);
             } catch (e) {
                 return `<div>フレームの読み込みに失敗: ${url}</div>`;
             }
@@ -221,4 +137,48 @@ async function rebuildFramesetPage(doc, baseUrl, isSecurityMode) {
         return `<div style="${frameStyle}">${content}</div>`;
     }).join('');
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>再構成ページ</title></head><body style="${containerStyle.replace(/\s+/g, ' ').trim()}">${frameDivs}</body></html>`;
+}
+
+function processHtmlContent(doc, baseUrl, doAdblock) {
+    if (doAdblock) {
+        doc.querySelectorAll('div[class*="ad"], div[id*="ad"], iframe[class*="ad"], div[data-ad-unit]').forEach(el => el.remove());
+    }
+
+    const baseDomain = new URL(baseUrl).hostname;
+    doc.querySelectorAll('a[href]').forEach(a => {
+        try {
+            const href = a.getAttribute('href');
+            if (!href || href.trim().toLowerCase().startsWith('javascript:')) return;
+            const absoluteHref = new URL(href, baseUrl).href;
+            const linkDomain = new URL(absoluteHref).hostname;
+            if (linkDomain !== baseDomain && !linkDomain.endsWith(`.${baseDomain}`)) {
+                a.removeAttribute('href');
+                a.style.cssText = 'color: #999; text-decoration: line-through;';
+                a.title = '外部リンクのため無効化';
+            }
+        } catch (e) { /* ignore */ }
+    });
+
+    doc.querySelectorAll('[href], [src]').forEach(el => {
+        const attr = el.hasAttribute('href') ? 'href' : 'src';
+        const originalPath = el.getAttribute(attr);
+        if (originalPath && !originalPath.startsWith('http') && !originalPath.startsWith('data:') && !originalPath.trim().toLowerCase().startsWith('javascript:')) {
+            try {
+                el.setAttribute(attr, new URL(originalPath, baseUrl).href);
+            } catch (e) { /* ignore */ }
+        }
+    });
+
+    doc.querySelector('base')?.remove();
+    let head = doc.querySelector('head');
+    if (!head) {
+        head = doc.createElement('head');
+        doc.documentElement.prepend(head);
+    }
+    if (!head.querySelector('meta[charset]')) {
+        const meta = doc.createElement('meta');
+        meta.setAttribute('charset', 'UTF-8');
+        head.prepend(meta);
+    }
+    return doc.documentElement.outerHTML;
 }

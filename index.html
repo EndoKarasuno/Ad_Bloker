@@ -11,7 +11,8 @@
         #controls { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }
         #url-input { flex-grow: 1; padding: 8px; font-size: 16px; }
         button { padding: 8px 15px; font-size: 16px; cursor: pointer; }
-        #options { margin-bottom: 20px; }
+        #options { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f9f9f9; }
+        #options div { margin-bottom: 5px; }
         #output-frame { width: 100%; height: 80vh; border: 1px solid #ccc; background: #f0f0f0; }
         #status { color: #555; min-height: 1.6em; }
     </style>
@@ -22,15 +23,25 @@
         <input type="text" id="url-input" placeholder="処理したいサイトのURLを入力">
         <button id="process-button">ページを処理</button>
     </div>
-    <!-- 【追加】モード選択UI -->
+    
+    <!-- 【改良】オプションを2つに分離 -->
     <div id="options">
-        <label>
-            <input type="checkbox" id="security-mode-checkbox" checked>
-            最大セキュリティモード (広告ブロック, 追跡防止, ゲームなどは動作しません)
-        </label>
+        <div>
+            <label>
+                <input type="checkbox" id="adblock-checkbox" checked>
+                広告をブロックする (サイトの表示が崩れる可能性があります)
+            </label>
+        </div>
+        <div>
+            <label>
+                <input type="checkbox" id="sandbox-checkbox" checked>
+                強力なサンドボックスを有効にする (追跡を防止しますが、ゲーム等は動作しません)
+            </label>
+        </div>
     </div>
+
     <p id="status">ここにステータスが表示されます。</p>
-    <iframe id="output-frame"></iframe> <!-- sandbox属性はJS側で動的に設定 -->
+    <iframe id="output-frame"></iframe>
     <script src="script.js"></script>
 </body>
 </html>
