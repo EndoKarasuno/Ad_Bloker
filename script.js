@@ -1,5 +1,5 @@
 // =======================================================================
-// ステップ1：HTML要素を変数に格納する
+// グローバル変数：HTML要素の取得
 // =======================================================================
 const urlInput = document.getElementById('url-input');
 const processButton = document.getElementById('process-button');
@@ -9,7 +9,7 @@ const adblockCheckbox = document.getElementById('adblock-checkbox');
 const sandboxCheckbox = document.getElementById('sandbox-checkbox');
 
 // =======================================================================
-// ステップ2：使用するプロキシサーバーのリストを定義
+// 定数：プロキシサーバーのリスト
 // =======================================================================
 const PROXY_LIST = [
     'https://corsproxy.io/?',
@@ -17,30 +17,26 @@ const PROXY_LIST = [
 ];
 
 // =======================================================================
-// ステップ3：コンテンツ取得用の関数
-// =======================================================================
-async function fetchAndDecode(url) { /* この関数は変更なし */ }
-
-// =======================================================================
-// 【改良点１】iframeの中から呼び出される「司令室」関数を新設
+// 【重要】iframeの中から呼び出される「司令室」関数
 // =======================================================================
 /**
- * iframe内のリンクがクリックされたときに呼び出されるグローバル関数
+ * iframe内のリンクがクリックされたときに呼び出され、ページの再処理をトリガーする
  * @param {string} newUrl - クリックされたリンクのURL
  */
 function handleFrameNavigation(newUrl) {
-    // 予期せぬ動作を防ぐため、URLを検証
     if (newUrl && typeof newUrl === 'string' && newUrl.startsWith('http')) {
-        console.log(`iframeナビゲーションを検知: ${newUrl}`);
-        // URL入力欄を更新
+        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        // ★ ここです！この一行が、URL入力欄を更新する処理です ★
+        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
         urlInput.value = newUrl;
+        
         // メインの処理を再実行
         processUrl();
     }
 }
 
 // =======================================================================
-// 【改良点２】メイン処理を独立した関数にリファクタリング
+// メイン処理：URLを取得し、ページを処理・表示する
 // =======================================================================
 async function processUrl() {
     let targetUrl = urlInput.value.trim();
@@ -85,56 +81,13 @@ async function processUrl() {
     }
 }
 
-// ボタンがクリックされたら、新しいメイン処理関数を呼び出す
+// ボタンがクリックされたら、メイン処理関数を呼び出す
 processButton.addEventListener('click', processUrl);
 
-
 // =======================================================================
-// ステップ5：HTMLを加工するための補助関数
+// 補助関数群
 // =======================================================================
 
-async function rebuildFramesetPage(doc, baseUrl, doAdblock) { /* この関数は変更なし */ }
-
-/**
- * HTMLコンテンツを実際に加工する関数
- */
-function processHtmlContent(doc, baseUrl, doAdblock) {
-    if (doAdblock) {
-        doc.querySelectorAll('div[class*="ad"], div[id*="ad"], iframe[class*="ad"], div[data-ad-unit]').forEach(el => el.remove());
-    }
-
-    const baseDomain = new URL(baseUrl).hostname;
-    doc.querySelectorAll('a[href]').forEach(a => {
-        try {
-            const href = a.getAttribute('href');
-            if (!href || href.trim().toLowerCase().startsWith('javascript:')) return;
-
-            const absoluteHref = new URL(href, baseUrl).href;
-            const linkDomain = new URL(absoluteHref).hostname;
-
-            if (linkDomain !== baseDomain && !linkDomain.endsWith(`.${baseDomain}`)) {
-                // 外部リンクはこれまで通り無効化
-                a.removeAttribute('href');
-                a.style.cssText = 'color: #999; text-decoration: line-through;';
-                a.title = '外部リンクのため無効化';
-            } else {
-                // 【改良点３】サイト内リンクを「司令室を呼び出す」ように改造
-                a.setAttribute('onclick', `window.parent.handleFrameNavigation(this.href); return false;`);
-            }
-        } catch (e) { /* ignore */ }
-    });
-
-    // これより下の処理は変更なし
-    doc.querySelectorAll('[href], [src]').forEach(el => { /* ... */ });
-    doc.querySelector('base')?.remove();
-    let head = doc.querySelector('head');
-    if (!head) { /* ... */ }
-    if (!head.querySelector('meta[charset]')) { /* ... */ }
-    
-    return doc.documentElement.outerHTML;
-}
-
-// --- 変更のない関数のためのダミー（実際には全コードを貼り付けてください）---
 async function fetchAndDecode(url) {
     for (const proxy of PROXY_LIST) {
         const proxyUrl = `${proxy}${encodeURIComponent(url)}`;
@@ -147,20 +100,32 @@ async function fetchAndDecode(url) {
             if (window.jschardet) {
                 const uInt8Array = new Uint8Array(buffer);
                 const detected = jschardet.detect(uInt8Array);
-                if (detected && detected.confidence > 0.9) { charset = detected.encoding.toLowerCase(); }
+                if (detected && detected.confidence > 0.9) {
+                    charset = detected.encoding.toLowerCase();
+                }
             }
             if (!charset) {
                 const contentType = response.headers.get('content-type') || '';
                 const match = contentType.match(/charset=([^;]+)/);
-                if (match) { const detectedCharset = match[1].toLowerCase(); if (['shift_jis', 'euc-jp', 'utf-8'].includes(detectedCharset)) { charset = detectedCharset; } }
+                if (match) {
+                    const detectedCharset = match[1].toLowerCase();
+                    if (['shift_jis', 'euc-jp', 'utf-8'].includes(detectedCharset)) {
+                        charset = detectedCharset;
+                    }
+                }
             }
-            if (!charset) { charset = 'utf-8'; }
+            if (!charset) {
+                charset = 'utf-8';
+            }
             const decoder = new TextDecoder(charset);
             return decoder.decode(buffer);
-        } catch (error) { console.warn(`プロキシ ${new URL(proxy).hostname} で失敗...`, error); }
+        } catch (error) {
+            console.warn(`プロキシ ${new URL(proxy).hostname} で失敗しました。次を試します...`, error);
+        }
     }
-    throw new Error('すべてのプロキシへの接続に失敗しました。');
+    throw new Error('すべてのプロキシサーバーへの接続に失敗しました。');
 }
+
 async function rebuildFramesetPage(doc, baseUrl, doAdblock) {
     const frameset = doc.querySelector('frameset');
     const isColsLayout = frameset.hasAttribute('cols');
@@ -174,7 +139,9 @@ async function rebuildFramesetPage(doc, baseUrl, doAdblock) {
                 const html = await fetchAndDecode(url);
                 const frameDoc = new DOMParser().parseFromString(html, 'text/html');
                 return processHtmlContent(frameDoc, url, doAdblock);
-            } catch (e) { return `<div>フレームの読み込みに失敗: ${url}</div>`; }
+            } catch (e) {
+                return `<div>フレームの読み込みに失敗: ${url}</div>`;
+            }
         })
     );
     const containerStyle = `display: flex; flex-direction: ${isColsLayout ? 'row' : 'column'}; width: 100%; height: 100vh; margin: 0; padding: 0;`;
@@ -188,8 +155,11 @@ async function rebuildFramesetPage(doc, baseUrl, doAdblock) {
     }).join('');
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>再構成ページ</title></head><body style="${containerStyle.replace(/\s+/g, ' ').trim()}">${frameDivs}</body></html>`;
 }
+
 function processHtmlContent(doc, baseUrl, doAdblock) {
-    if (doAdblock) { doc.querySelectorAll('div[class*="ad"], div[id*="ad"], iframe[class*="ad"], div[data-ad-unit]').forEach(el => el.remove()); }
+    if (doAdblock) {
+        doc.querySelectorAll('div[class*="ad"], div[id*="ad"], iframe[class*="ad"], div[data-ad-unit]').forEach(el => el.remove());
+    }
     const baseDomain = new URL(baseUrl).hostname;
     doc.querySelectorAll('a[href]').forEach(a => {
         try {
@@ -210,12 +180,21 @@ function processHtmlContent(doc, baseUrl, doAdblock) {
         const attr = el.hasAttribute('href') ? 'href' : 'src';
         const originalPath = el.getAttribute(attr);
         if (originalPath && !originalPath.startsWith('http') && !originalPath.startsWith('data:') && !originalPath.trim().toLowerCase().startsWith('javascript:')) {
-            try { el.setAttribute(attr, new URL(originalPath, baseUrl).href); } catch (e) { /* ignore */ }
+            try {
+                el.setAttribute(attr, new URL(originalPath, baseUrl).href);
+            } catch (e) { /* ignore */ }
         }
     });
     doc.querySelector('base')?.remove();
     let head = doc.querySelector('head');
-    if (!head) { head = doc.createElement('head'); doc.documentElement.prepend(head); }
-    if (!head.querySelector('meta[charset]')) { const meta = doc.createElement('meta'); meta.setAttribute('charset', 'UTF-8'); head.prepend(meta); }
+    if (!head) {
+        head = doc.createElement('head');
+        doc.documentElement.prepend(head);
+    }
+    if (!head.querySelector('meta[charset]')) {
+        const meta = doc.createElement('meta');
+        meta.setAttribute('charset', 'UTF-8');
+        head.prepend(meta);
+    }
     return doc.documentElement.outerHTML;
 }
